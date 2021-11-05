@@ -1,5 +1,5 @@
 var files = {
-	"webgl": [
+	webgl: [
 		"webgl_animation_cloth",
 		"webgl_animation_keyframes",
 		"webgl_animation_skinning_blending",
@@ -232,7 +232,7 @@ var files = {
 		"webgl_trails",
 		"webgl_video_panorama_equirectangular",
 		"webgl_water",
-		"webgl_water_flowmap"
+		"webgl_water_flowmap",
 	],
 	"webgl / nodes": [
 		"webgl_loader_nodes",
@@ -270,7 +270,7 @@ var files = {
 		"webgl_postprocessing_ssao",
 		"webgl_postprocessing_taa",
 		"webgl_postprocessing_unreal_bloom",
-		"webgl_postprocessing_unreal_bloom_selective"
+		"webgl_postprocessing_unreal_bloom_selective",
 	],
 	"webgl / advanced": [
 		"webgl_buffergeometry",
@@ -309,22 +309,23 @@ var files = {
 		"webgl_simple_gi",
 		"webgl_tiled_forward",
 		"webgl_worker_offscreencanvas",
-		"webgldeferred_animation"
+		"webgldeferred_animation",
 	],
-	"webgl2": [
+	webgl2: [
 		"webgl2_materials_texture2darray",
 		"webgl2_materials_texture3d",
+		"webgl2_morphtargets",
 		"webgl2_multisampled_renderbuffers",
 		"webgl2_sandbox",
-		"webgl2_ubo"
+		"webgl2_ubo",
 	],
-	"webaudio": [
+	webaudio: [
 		"webaudio_orientation",
 		"webaudio_sandbox",
 		"webaudio_timing",
-		"webaudio_visualizer"
+		"webaudio_visualizer",
 	],
-	"webxr": [
+	webxr: [
 		"webxr_ar_paint",
 		"webxr_vr_ballshooter",
 		"webxr_vr_cubes",
@@ -337,16 +338,16 @@ var files = {
 		"webxr_vr_rollercoaster",
 		"webxr_vr_sandbox",
 		"webxr_vr_sculpt",
-		"webxr_vr_video"
+		"webxr_vr_video",
 	],
-	"physics": [
+	physics: [
 		"webgl_physics_cloth",
 		"webgl_physics_convex_break",
 		"webgl_physics_rope",
 		"webgl_physics_terrain",
-		"webgl_physics_volume"
+		"webgl_physics_volume",
 	],
-	"misc": [
+	misc: [
 		"misc_animation_authoring",
 		"misc_animation_groups",
 		"misc_animation_keys",
@@ -366,10 +367,8 @@ var files = {
 		"misc_exporter_stl",
 		"misc_lookat",
 	],
-	"css2d": [
-		"css2d_label"
-	],
-	"css3d": [
+	css2d: ["css2d_label"],
+	css3d: [
 		"css3d_molecules",
 		"css3d_orthographic",
 		"css3d_panorama",
@@ -377,17 +376,9 @@ var files = {
 		"css3d_periodictable",
 		"css3d_sandbox",
 		"css3d_sprites",
-		"css3d_youtube"
+		"css3d_youtube",
 	],
-	"raytracing": [
-		"raytracing_sandbox"
-	],
-	"svg": [
-		"svg_lines",
-		"svg_sandbox"
-	],
-	"tests": [
-		"webgl_furnace_test",
-		"misc_uv_tests"
-	]
+	raytracing: ["raytracing_sandbox"],
+	svg: ["svg_lines", "svg_sandbox"],
+	tests: ["webgl_furnace_test", "misc_uv_tests"],
 };
