@@ -5154,13 +5154,9 @@
 			this.userData = {};
 		}
 
-		onBeforeRender()
-		/* renderer, scene, camera, geometry, material, group */
-		{}
+		onBeforeRender() {}
 
-		onAfterRender()
-		/* renderer, scene, camera, geometry, material, group */
-		{}
+		onAfterRender() {}
 
 		applyMatrix4(matrix) {
 			if (this.matrixAutoUpdate) this.updateMatrix();
@@ -6092,17 +6088,11 @@
 			this._alphaTest = value;
 		}
 
-		onBuild()
-		/* shaderobject, renderer */
-		{}
+		onBuild() {}
 
-		onBeforeRender()
-		/* renderer, scene, camera, geometry, object, group */
-		{}
+		onBeforeRender() {}
 
-		onBeforeCompile()
-		/* shaderobject, renderer */
-		{}
+		onBeforeCompile() {}
 
 		customProgramCacheKey() {
 			return this.onBeforeCompile.toString();
@@ -12890,84 +12880,82 @@
 		function update(object, geometry, material, program) {
 			const objectInfluences = object.morphTargetInfluences;
 
-			if (capabilities.isWebGL2 === true && false
-			/* casuing issues, disable for now, also see WebGLProgram */
-			) {
-					// instead of using attributes, the WebGL 2 code path encodes morph targets
-					// into an array of data textures. Each layer represents a single morph target.
-					const numberOfMorphTargets = geometry.morphAttributes.position.length;
-					let entry = morphTextures.get(geometry);
+			if (capabilities.isWebGL2 === true) {
+				// instead of using attributes, the WebGL 2 code path encodes morph targets
+				// into an array of data textures. Each layer represents a single morph target.
+				const numberOfMorphTargets = geometry.morphAttributes.position.length;
+				let entry = morphTextures.get(geometry);
 
-					if (entry === undefined || entry.count !== numberOfMorphTargets) {
-						if (entry !== undefined) entry.texture.dispose();
-						const hasMorphNormals = geometry.morphAttributes.normal !== undefined;
-						const morphTargets = geometry.morphAttributes.position;
-						const morphNormals = geometry.morphAttributes.normal || [];
-						const numberOfVertices = geometry.attributes.position.count;
-						const numberOfVertexData = hasMorphNormals === true ? 2 : 1; // (v,n) vs. (v)
+				if (entry === undefined || entry.count !== numberOfMorphTargets) {
+					if (entry !== undefined) entry.texture.dispose();
+					const hasMorphNormals = geometry.morphAttributes.normal !== undefined;
+					const morphTargets = geometry.morphAttributes.position;
+					const morphNormals = geometry.morphAttributes.normal || [];
+					const numberOfVertices = geometry.attributes.position.count;
+					const numberOfVertexData = hasMorphNormals === true ? 2 : 1; // (v,n) vs. (v)
 
-						let width = numberOfVertices * numberOfVertexData;
-						let height = 1;
+					let width = numberOfVertices * numberOfVertexData;
+					let height = 1;
 
-						if (width > capabilities.maxTextureSize) {
-							height = Math.ceil(width / capabilities.maxTextureSize);
-							width = capabilities.maxTextureSize;
-						}
-
-						const buffer = new Float32Array(width * height * 4 * numberOfMorphTargets);
-						const texture = new DataTexture2DArray(buffer, width, height, numberOfMorphTargets);
-						texture.format = RGBAFormat; // using RGBA since RGB might be emulated (and is thus slower)
-
-						texture.type = FloatType; // fill buffer
-
-						const vertexDataStride = numberOfVertexData * 4;
-
-						for (let i = 0; i < numberOfMorphTargets; i++) {
-							const morphTarget = morphTargets[i];
-							const morphNormal = morphNormals[i];
-							const offset = width * height * 4 * i;
-
-							for (let j = 0; j < morphTarget.count; j++) {
-								morph.fromBufferAttribute(morphTarget, j);
-								if (morphTarget.normalized === true) denormalize(morph, morphTarget);
-								const stride = j * vertexDataStride;
-								buffer[offset + stride + 0] = morph.x;
-								buffer[offset + stride + 1] = morph.y;
-								buffer[offset + stride + 2] = morph.z;
-								buffer[offset + stride + 3] = 0;
-
-								if (hasMorphNormals === true) {
-									morph.fromBufferAttribute(morphNormal, j);
-									if (morphNormal.normalized === true) denormalize(morph, morphNormal);
-									buffer[offset + stride + 4] = morph.x;
-									buffer[offset + stride + 5] = morph.y;
-									buffer[offset + stride + 6] = morph.z;
-									buffer[offset + stride + 7] = 0;
-								}
-							}
-						}
-
-						entry = {
-							count: numberOfMorphTargets,
-							texture: texture,
-							size: new Vector2(width, height)
-						};
-						morphTextures.set(geometry, entry);
-					} //
-
-
-					let morphInfluencesSum = 0;
-
-					for (let i = 0; i < objectInfluences.length; i++) {
-						morphInfluencesSum += objectInfluences[i];
+					if (width > capabilities.maxTextureSize) {
+						height = Math.ceil(width / capabilities.maxTextureSize);
+						width = capabilities.maxTextureSize;
 					}
 
-					const morphBaseInfluence = geometry.morphTargetsRelative ? 1 : 1 - morphInfluencesSum;
-					program.getUniforms().setValue(gl, 'morphTargetBaseInfluence', morphBaseInfluence);
-					program.getUniforms().setValue(gl, 'morphTargetInfluences', objectInfluences);
-					program.getUniforms().setValue(gl, 'morphTargetsTexture', entry.texture, textures);
-					program.getUniforms().setValue(gl, 'morphTargetsTextureSize', entry.size);
-				} else {
+					const buffer = new Float32Array(width * height * 4 * numberOfMorphTargets);
+					const texture = new DataTexture2DArray(buffer, width, height, numberOfMorphTargets);
+					texture.format = RGBAFormat; // using RGBA since RGB might be emulated (and is thus slower)
+
+					texture.type = FloatType; // fill buffer
+
+					const vertexDataStride = numberOfVertexData * 4;
+
+					for (let i = 0; i < numberOfMorphTargets; i++) {
+						const morphTarget = morphTargets[i];
+						const morphNormal = morphNormals[i];
+						const offset = width * height * 4 * i;
+
+						for (let j = 0; j < morphTarget.count; j++) {
+							morph.fromBufferAttribute(morphTarget, j);
+							if (morphTarget.normalized === true) denormalize(morph, morphTarget);
+							const stride = j * vertexDataStride;
+							buffer[offset + stride + 0] = morph.x;
+							buffer[offset + stride + 1] = morph.y;
+							buffer[offset + stride + 2] = morph.z;
+							buffer[offset + stride + 3] = 0;
+
+							if (hasMorphNormals === true) {
+								morph.fromBufferAttribute(morphNormal, j);
+								if (morphNormal.normalized === true) denormalize(morph, morphNormal);
+								buffer[offset + stride + 4] = morph.x;
+								buffer[offset + stride + 5] = morph.y;
+								buffer[offset + stride + 6] = morph.z;
+								buffer[offset + stride + 7] = 0;
+							}
+						}
+					}
+
+					entry = {
+						count: numberOfMorphTargets,
+						texture: texture,
+						size: new Vector2(width, height)
+					};
+					morphTextures.set(geometry, entry);
+				} //
+
+
+				let morphInfluencesSum = 0;
+
+				for (let i = 0; i < objectInfluences.length; i++) {
+					morphInfluencesSum += objectInfluences[i];
+				}
+
+				const morphBaseInfluence = geometry.morphTargetsRelative ? 1 : 1 - morphInfluencesSum;
+				program.getUniforms().setValue(gl, 'morphTargetBaseInfluence', morphBaseInfluence);
+				program.getUniforms().setValue(gl, 'morphTargetInfluences', objectInfluences);
+				program.getUniforms().setValue(gl, 'morphTargetsTexture', entry.texture, textures);
+				program.getUniforms().setValue(gl, 'morphTargetsTextureSize', entry.size);
+			} else {
 				// When object doesn't have morph target influences defined, we treat it as a 0-length array
 				// This is important to make sure we set up morphTargetBaseInfluence / morphTargetInfluences
 				const length = objectInfluences === undefined ? 0 : objectInfluences.length;
@@ -14210,10 +14198,7 @@
 				prefixFragment += '\n';
 			}
 		} else {
-			prefixVertex = [generatePrecision(parameters), '#define SHADER_NAME ' + parameters.shaderName, customDefines, parameters.instancing ? '#define USE_INSTANCING' : '', parameters.instancingColor ? '#define USE_INSTANCING_COLOR' : '', parameters.supportsVertexTextures ? '#define VERTEX_TEXTURES' : '', '#define GAMMA_FACTOR ' + gammaFactorDefine, '#define MAX_BONES ' + parameters.maxBones, parameters.useFog && parameters.fog ? '#define USE_FOG' : '', parameters.useFog && parameters.fogExp2 ? '#define FOG_EXP2' : '', parameters.map ? '#define USE_MAP' : '', parameters.envMap ? '#define USE_ENVMAP' : '', parameters.envMap ? '#define ' + envMapModeDefine : '', parameters.lightMap ? '#define USE_LIGHTMAP' : '', parameters.aoMap ? '#define USE_AOMAP' : '', parameters.emissiveMap ? '#define USE_EMISSIVEMAP' : '', parameters.bumpMap ? '#define USE_BUMPMAP' : '', parameters.normalMap ? '#define USE_NORMALMAP' : '', parameters.normalMap && parameters.objectSpaceNormalMap ? '#define OBJECTSPACE_NORMALMAP' : '', parameters.normalMap && parameters.tangentSpaceNormalMap ? '#define TANGENTSPACE_NORMALMAP' : '', parameters.clearcoatMap ? '#define USE_CLEARCOATMAP' : '', parameters.clearcoatRoughnessMap ? '#define USE_CLEARCOAT_ROUGHNESSMAP' : '', parameters.clearcoatNormalMap ? '#define USE_CLEARCOAT_NORMALMAP' : '', parameters.displacementMap && parameters.supportsVertexTextures ? '#define USE_DISPLACEMENTMAP' : '', parameters.specularMap ? '#define USE_SPECULARMAP' : '', parameters.specularIntensityMap ? '#define USE_SPECULARINTENSITYMAP' : '', parameters.specularTintMap ? '#define USE_SPECULARTINTMAP' : '', parameters.roughnessMap ? '#define USE_ROUGHNESSMAP' : '', parameters.metalnessMap ? '#define USE_METALNESSMAP' : '', parameters.alphaMap ? '#define USE_ALPHAMAP' : '', parameters.transmission ? '#define USE_TRANSMISSION' : '', parameters.transmissionMap ? '#define USE_TRANSMISSIONMAP' : '', parameters.thicknessMap ? '#define USE_THICKNESSMAP' : '', parameters.vertexTangents ? '#define USE_TANGENT' : '', parameters.vertexColors ? '#define USE_COLOR' : '', parameters.vertexAlphas ? '#define USE_COLOR_ALPHA' : '', parameters.vertexUvs ? '#define USE_UV' : '', parameters.uvsVertexOnly ? '#define UVS_VERTEX_ONLY' : '', parameters.flatShading ? '#define FLAT_SHADED' : '', parameters.skinning ? '#define USE_SKINNING' : '', parameters.useVertexTexture ? '#define BONE_TEXTURE' : '', parameters.morphTargets ? '#define USE_MORPHTARGETS' : '', parameters.morphNormals && parameters.flatShading === false ? '#define USE_MORPHNORMALS' : '', // This causes issues on some systems, disable for now
-			// ( parameters.morphTargets && parameters.isWebGL2 ) ? '#define MORPHTARGETS_TEXTURE' : '',
-			// ( parameters.morphTargets && parameters.isWebGL2 ) ? '#define MORPHTARGETS_COUNT ' + parameters.morphTargetsCount : '',
-			parameters.doubleSided ? '#define DOUBLE_SIDED' : '', parameters.flipSided ? '#define FLIP_SIDED' : '', parameters.shadowMapEnabled ? '#define USE_SHADOWMAP' : '', parameters.shadowMapEnabled ? '#define ' + shadowMapTypeDefine : '', parameters.sizeAttenuation ? '#define USE_SIZEATTENUATION' : '', parameters.logarithmicDepthBuffer ? '#define USE_LOGDEPTHBUF' : '', parameters.logarithmicDepthBuffer && parameters.rendererExtensionFragDepth ? '#define USE_LOGDEPTHBUF_EXT' : '', 'uniform mat4 modelMatrix;', 'uniform mat4 modelViewMatrix;', 'uniform mat4 projectionMatrix;', 'uniform mat4 viewMatrix;', 'uniform mat3 normalMatrix;', 'uniform vec3 cameraPosition;', 'uniform bool isOrthographic;', '#ifdef USE_INSTANCING', '	attribute mat4 instanceMatrix;', '#endif', '#ifdef USE_INSTANCING_COLOR', '	attribute vec3 instanceColor;', '#endif', 'attribute vec3 position;', 'attribute vec3 normal;', 'attribute vec2 uv;', '#ifdef USE_TANGENT', '	attribute vec4 tangent;', '#endif', '#if defined( USE_COLOR_ALPHA )', '	attribute vec4 color;', '#elif defined( USE_COLOR )', '	attribute vec3 color;', '#endif', '#if ( defined( USE_MORPHTARGETS ) && ! defined( MORPHTARGETS_TEXTURE ) )', '	attribute vec3 morphTarget0;', '	attribute vec3 morphTarget1;', '	attribute vec3 morphTarget2;', '	attribute vec3 morphTarget3;', '	#ifdef USE_MORPHNORMALS', '		attribute vec3 morphNormal0;', '		attribute vec3 morphNormal1;', '		attribute vec3 morphNormal2;', '		attribute vec3 morphNormal3;', '	#else', '		attribute vec3 morphTarget4;', '		attribute vec3 morphTarget5;', '		attribute vec3 morphTarget6;', '		attribute vec3 morphTarget7;', '	#endif', '#endif', '#ifdef USE_SKINNING', '	attribute vec4 skinIndex;', '	attribute vec4 skinWeight;', '#endif', '\n'].filter(filterEmptyLine).join('\n');
+			prefixVertex = [generatePrecision(parameters), '#define SHADER_NAME ' + parameters.shaderName, customDefines, parameters.instancing ? '#define USE_INSTANCING' : '', parameters.instancingColor ? '#define USE_INSTANCING_COLOR' : '', parameters.supportsVertexTextures ? '#define VERTEX_TEXTURES' : '', '#define GAMMA_FACTOR ' + gammaFactorDefine, '#define MAX_BONES ' + parameters.maxBones, parameters.useFog && parameters.fog ? '#define USE_FOG' : '', parameters.useFog && parameters.fogExp2 ? '#define FOG_EXP2' : '', parameters.map ? '#define USE_MAP' : '', parameters.envMap ? '#define USE_ENVMAP' : '', parameters.envMap ? '#define ' + envMapModeDefine : '', parameters.lightMap ? '#define USE_LIGHTMAP' : '', parameters.aoMap ? '#define USE_AOMAP' : '', parameters.emissiveMap ? '#define USE_EMISSIVEMAP' : '', parameters.bumpMap ? '#define USE_BUMPMAP' : '', parameters.normalMap ? '#define USE_NORMALMAP' : '', parameters.normalMap && parameters.objectSpaceNormalMap ? '#define OBJECTSPACE_NORMALMAP' : '', parameters.normalMap && parameters.tangentSpaceNormalMap ? '#define TANGENTSPACE_NORMALMAP' : '', parameters.clearcoatMap ? '#define USE_CLEARCOATMAP' : '', parameters.clearcoatRoughnessMap ? '#define USE_CLEARCOAT_ROUGHNESSMAP' : '', parameters.clearcoatNormalMap ? '#define USE_CLEARCOAT_NORMALMAP' : '', parameters.displacementMap && parameters.supportsVertexTextures ? '#define USE_DISPLACEMENTMAP' : '', parameters.specularMap ? '#define USE_SPECULARMAP' : '', parameters.specularIntensityMap ? '#define USE_SPECULARINTENSITYMAP' : '', parameters.specularTintMap ? '#define USE_SPECULARTINTMAP' : '', parameters.roughnessMap ? '#define USE_ROUGHNESSMAP' : '', parameters.metalnessMap ? '#define USE_METALNESSMAP' : '', parameters.alphaMap ? '#define USE_ALPHAMAP' : '', parameters.transmission ? '#define USE_TRANSMISSION' : '', parameters.transmissionMap ? '#define USE_TRANSMISSIONMAP' : '', parameters.thicknessMap ? '#define USE_THICKNESSMAP' : '', parameters.vertexTangents ? '#define USE_TANGENT' : '', parameters.vertexColors ? '#define USE_COLOR' : '', parameters.vertexAlphas ? '#define USE_COLOR_ALPHA' : '', parameters.vertexUvs ? '#define USE_UV' : '', parameters.uvsVertexOnly ? '#define UVS_VERTEX_ONLY' : '', parameters.flatShading ? '#define FLAT_SHADED' : '', parameters.skinning ? '#define USE_SKINNING' : '', parameters.useVertexTexture ? '#define BONE_TEXTURE' : '', parameters.morphTargets ? '#define USE_MORPHTARGETS' : '', parameters.morphNormals && parameters.flatShading === false ? '#define USE_MORPHNORMALS' : '', parameters.morphTargets && parameters.isWebGL2 ? '#define MORPHTARGETS_TEXTURE' : '', parameters.morphTargets && parameters.isWebGL2 ? '#define MORPHTARGETS_COUNT ' + parameters.morphTargetsCount : '', parameters.doubleSided ? '#define DOUBLE_SIDED' : '', parameters.flipSided ? '#define FLIP_SIDED' : '', parameters.shadowMapEnabled ? '#define USE_SHADOWMAP' : '', parameters.shadowMapEnabled ? '#define ' + shadowMapTypeDefine : '', parameters.sizeAttenuation ? '#define USE_SIZEATTENUATION' : '', parameters.logarithmicDepthBuffer ? '#define USE_LOGDEPTHBUF' : '', parameters.logarithmicDepthBuffer && parameters.rendererExtensionFragDepth ? '#define USE_LOGDEPTHBUF_EXT' : '', 'uniform mat4 modelMatrix;', 'uniform mat4 modelViewMatrix;', 'uniform mat4 projectionMatrix;', 'uniform mat4 viewMatrix;', 'uniform mat3 normalMatrix;', 'uniform vec3 cameraPosition;', 'uniform bool isOrthographic;', '#ifdef USE_INSTANCING', '	attribute mat4 instanceMatrix;', '#endif', '#ifdef USE_INSTANCING_COLOR', '	attribute vec3 instanceColor;', '#endif', 'attribute vec3 position;', 'attribute vec3 normal;', 'attribute vec2 uv;', '#ifdef USE_TANGENT', '	attribute vec4 tangent;', '#endif', '#if defined( USE_COLOR_ALPHA )', '	attribute vec4 color;', '#elif defined( USE_COLOR )', '	attribute vec3 color;', '#endif', '#if ( defined( USE_MORPHTARGETS ) && ! defined( MORPHTARGETS_TEXTURE ) )', '	attribute vec3 morphTarget0;', '	attribute vec3 morphTarget1;', '	attribute vec3 morphTarget2;', '	attribute vec3 morphTarget3;', '	#ifdef USE_MORPHNORMALS', '		attribute vec3 morphNormal0;', '		attribute vec3 morphNormal1;', '		attribute vec3 morphNormal2;', '		attribute vec3 morphNormal3;', '	#else', '		attribute vec3 morphTarget4;', '		attribute vec3 morphTarget5;', '		attribute vec3 morphTarget6;', '		attribute vec3 morphTarget7;', '	#endif', '#endif', '#ifdef USE_SKINNING', '	attribute vec4 skinIndex;', '	attribute vec4 skinWeight;', '#endif', '\n'].filter(filterEmptyLine).join('\n');
 			prefixFragment = [customExtensions, generatePrecision(parameters), '#define SHADER_NAME ' + parameters.shaderName, customDefines, '#define GAMMA_FACTOR ' + gammaFactorDefine, parameters.useFog && parameters.fog ? '#define USE_FOG' : '', parameters.useFog && parameters.fogExp2 ? '#define FOG_EXP2' : '', parameters.map ? '#define USE_MAP' : '', parameters.matcap ? '#define USE_MATCAP' : '', parameters.envMap ? '#define USE_ENVMAP' : '', parameters.envMap ? '#define ' + envMapTypeDefine : '', parameters.envMap ? '#define ' + envMapModeDefine : '', parameters.envMap ? '#define ' + envMapBlendingDefine : '', parameters.lightMap ? '#define USE_LIGHTMAP' : '', parameters.aoMap ? '#define USE_AOMAP' : '', parameters.emissiveMap ? '#define USE_EMISSIVEMAP' : '', parameters.bumpMap ? '#define USE_BUMPMAP' : '', parameters.normalMap ? '#define USE_NORMALMAP' : '', parameters.normalMap && parameters.objectSpaceNormalMap ? '#define OBJECTSPACE_NORMALMAP' : '', parameters.normalMap && parameters.tangentSpaceNormalMap ? '#define TANGENTSPACE_NORMALMAP' : '', parameters.clearcoat ? '#define USE_CLEARCOAT' : '', parameters.clearcoatMap ? '#define USE_CLEARCOATMAP' : '', parameters.clearcoatRoughnessMap ? '#define USE_CLEARCOAT_ROUGHNESSMAP' : '', parameters.clearcoatNormalMap ? '#define USE_CLEARCOAT_NORMALMAP' : '', parameters.specularMap ? '#define USE_SPECULARMAP' : '', parameters.specularIntensityMap ? '#define USE_SPECULARINTENSITYMAP' : '', parameters.specularTintMap ? '#define USE_SPECULARTINTMAP' : '', parameters.roughnessMap ? '#define USE_ROUGHNESSMAP' : '', parameters.metalnessMap ? '#define USE_METALNESSMAP' : '', parameters.alphaMap ? '#define USE_ALPHAMAP' : '', parameters.alphaTest ? '#define USE_ALPHATEST' : '', parameters.sheen ? '#define USE_SHEEN' : '', parameters.transmission ? '#define USE_TRANSMISSION' : '', parameters.transmissionMap ? '#define USE_TRANSMISSIONMAP' : '', parameters.thicknessMap ? '#define USE_THICKNESSMAP' : '', parameters.vertexTangents ? '#define USE_TANGENT' : '', parameters.vertexColors || parameters.instancingColor ? '#define USE_COLOR' : '', parameters.vertexAlphas ? '#define USE_COLOR_ALPHA' : '', parameters.vertexUvs ? '#define USE_UV' : '', parameters.uvsVertexOnly ? '#define UVS_VERTEX_ONLY' : '', parameters.gradientMap ? '#define USE_GRADIENTMAP' : '', parameters.flatShading ? '#define FLAT_SHADED' : '', parameters.doubleSided ? '#define DOUBLE_SIDED' : '', parameters.flipSided ? '#define FLIP_SIDED' : '', parameters.shadowMapEnabled ? '#define USE_SHADOWMAP' : '', parameters.shadowMapEnabled ? '#define ' + shadowMapTypeDefine : '', parameters.premultipliedAlpha ? '#define PREMULTIPLIED_ALPHA' : '', parameters.physicallyCorrectLights ? '#define PHYSICALLY_CORRECT_LIGHTS' : '', parameters.logarithmicDepthBuffer ? '#define USE_LOGDEPTHBUF' : '', parameters.logarithmicDepthBuffer && parameters.rendererExtensionFragDepth ? '#define USE_LOGDEPTHBUF_EXT' : '', (parameters.extensionShaderTextureLOD || parameters.envMap) && parameters.rendererExtensionShaderTextureLod ? '#define TEXTURE_LOD_EXT' : '', 'uniform mat4 viewMatrix;', 'uniform vec3 cameraPosition;', 'uniform bool isOrthographic;', parameters.toneMapping !== NoToneMapping ? '#define TONE_MAPPING' : '', parameters.toneMapping === LUTToneMapping ? '#define LUT_TONE_MAPPING' : '', parameters.toneMapping !== NoToneMapping ? ShaderChunk['tonemapping_pars_fragment'] : '', // this code is required here because it is used by the toneMapping() function defined below
 			parameters.toneMapping !== NoToneMapping ? getToneMappingFunction('toneMapping', parameters.toneMapping) : '', parameters.dithering ? '#define DITHERING' : '', parameters.format === RGBFormat ? '#define OPAQUE' : '', ShaderChunk['encodings_pars_fragment'], // this code is required here because it is used by the various encoding/decoding function defined below
 			parameters.map ? getTexelDecodingFunction('mapTexelToLinear', parameters.mapEncoding) : '', parameters.matcap ? getTexelDecodingFunction('matcapTexelToLinear', parameters.matcapEncoding) : '', parameters.envMap ? getTexelDecodingFunction('envMapTexelToLinear', parameters.envMapEncoding) : '', parameters.emissiveMap ? getTexelDecodingFunction('emissiveMapTexelToLinear', parameters.emissiveMapEncoding) : '', parameters.specularTintMap ? getTexelDecodingFunction('specularTintMapTexelToLinear', parameters.specularTintMapEncoding) : '', parameters.lightMap ? getTexelDecodingFunction('lightMapTexelToLinear', parameters.lightMapEncoding) : '', getTexelEncodingFunction('linearToOutputTexel', parameters.outputEncoding), parameters.depthPacking ? '#define DEPTH_PACKING ' + parameters.depthPacking : '', '\n'].filter(filterEmptyLine).join('\n');
@@ -19169,9 +19154,7 @@
 			_isContextLost = true;
 		}
 
-		function onContextRestore()
-		/* event */
-		{
+		function onContextRestore() {
 			console.log('THREE.WebGLRenderer: Context Restored.');
 			_isContextLost = false;
 			const infoAutoReset = info.autoReset;
@@ -20312,9 +20295,7 @@
 			return new FogExp2(this.color, this.density);
 		}
 
-		toJSON()
-		/* meta */
-		{
+		toJSON() {
 			return {
 				type: 'FogExp2',
 				color: this.color.getHex(),
@@ -20338,9 +20319,7 @@
 			return new Fog(this.color, this.near, this.far);
 		}
 
-		toJSON()
-		/* meta */
-		{
+		toJSON() {
 			return {
 				type: 'Fog',
 				color: this.color.getHex(),
@@ -22596,9 +22575,7 @@
 		//	- t [0 .. 1]
 
 
-		getPoint()
-		/* t, optionalTarget */
-		{
+		getPoint() {
 			console.warn('THREE.Curve: .getPoint() not implemented.');
 			return null;
 		} // Get point at relative position in curve according to arc length
@@ -24363,9 +24340,7 @@
 
 
 	function isValidDiagonal(a, b) {
-		return a.next.i !== b.i && a.prev.i !== b.i && !intersectsPolygon(a, b) && ( // dones't intersect other edges
-		locallyInside(a, b) && locallyInside(b, a) && middleInside(a, b) && ( // locally visible
-		area(a.prev, a, b.prev) || area(a, b.prev, b)) || // does not create opposite-facing sectors
+		return a.next.i !== b.i && a.prev.i !== b.i && !intersectsPolygon(a, b) && (locallyInside(a, b) && locallyInside(b, a) && middleInside(a, b) && (area(a.prev, a, b.prev) || area(a, b.prev, b)) || // does not create opposite-facing sectors
 		equals(a, b) && area(a.prev, a, a.next) > 0 && area(b.prev, b, b.next) > 0); // special zero-length case
 	} // signed area of a triangle
 
@@ -27133,15 +27108,11 @@
 		} // Template methods for derived classes:
 
 
-		interpolate_()
-		/* i1, t0, t, t1 */
-		{
+		interpolate_() {
 			throw new Error('call to abstract method'); // implementations shall return this.resultBuffer
 		}
 
-		intervalChanged_()
-		/* i1, t0, t1 */
-		{// empty
+		intervalChanged_() {// empty
 		}
 
 	} // ALIAS DEFINITIONS
@@ -28134,9 +28105,7 @@
 			this.requestHeader = {};
 		}
 
-		load()
-		/* url, onLoad, onProgress, onError */
-		{}
+		load() {}
 
 		loadAsync(url, onProgress) {
 			const scope = this;
@@ -28145,9 +28114,7 @@
 			});
 		}
 
-		parse()
-		/* data */
-		{}
+		parse() {}
 
 		setCrossOrigin(crossOrigin) {
 			this.crossOrigin = crossOrigin;
@@ -33700,9 +33667,7 @@
 			super();
 			this.material = material;
 
-			this.render = function ()
-			/* renderCallback */
-			{};
+			this.render = function () {};
 
 			this.hasPositions = false;
 			this.hasNormals = false;
@@ -34961,14 +34926,10 @@
 	};
 
 	Loader.Handlers = {
-		add: function ()
-		/* regex, loader */
-		{
+		add: function () {
 			console.error('THREE.Loader: Handlers.add() has been removed. Use LoadingManager.addHandler() instead.');
 		},
-		get: function ()
-		/* file */
-		{
+		get: function () {
 			console.error('THREE.Loader: Handlers.get() has been removed. Use LoadingManager.getHandler() instead.');
 		}
 	};
@@ -35056,9 +35017,7 @@
 		return vector.applyMatrix3(this);
 	};
 
-	Matrix3.prototype.multiplyVector3Array = function ()
-	/* a */
-	{
+	Matrix3.prototype.multiplyVector3Array = function () {
 		console.error('THREE.Matrix3: .multiplyVector3Array() has been removed.');
 	};
 
@@ -35067,9 +35026,7 @@
 		return attribute.applyMatrix3(this);
 	};
 
-	Matrix3.prototype.applyToVector3Array = function ()
-	/* array, offset, length */
-	{
+	Matrix3.prototype.applyToVector3Array = function () {
 		console.error('THREE.Matrix3: .applyToVector3Array() has been removed.');
 	};
 
@@ -35113,9 +35070,7 @@
 		return vector.applyMatrix4(this);
 	};
 
-	Matrix4.prototype.multiplyVector3Array = function ()
-	/* a */
-	{
+	Matrix4.prototype.multiplyVector3Array = function () {
 		console.error('THREE.Matrix4: .multiplyVector3Array() has been removed.');
 	};
 
@@ -35154,9 +35109,7 @@
 		return attribute.applyMatrix4(this);
 	};
 
-	Matrix4.prototype.applyToVector3Array = function ()
-	/* array, offset, length */
-	{
+	Matrix4.prototype.applyToVector3Array = function () {
 		console.error('THREE.Matrix4: .applyToVector3Array() has been removed.');
 	};
 
@@ -35489,9 +35442,7 @@
 				console.warn('THREE.BufferAttribute: .dynamic has been deprecated. Use .usage instead.');
 				return this.usage === DynamicDrawUsage;
 			},
-			set: function ()
-			/* value */
-			{
+			set: function () {
 				console.warn('THREE.BufferAttribute: .dynamic has been deprecated. Use .usage instead.');
 				this.setUsage(DynamicDrawUsage);
 			}
@@ -35504,13 +35455,9 @@
 		return this;
 	};
 
-	BufferAttribute.prototype.copyIndicesArray = function ()
-	/* indices */
-	{
+	BufferAttribute.prototype.copyIndicesArray = function () {
 		console.error('THREE.BufferAttribute: .copyIndicesArray() has been removed.');
-	}, BufferAttribute.prototype.setArray = function ()
-	/* array */
-	{
+	}, BufferAttribute.prototype.setArray = function () {
 		console.error('THREE.BufferAttribute: .setArray has been removed. Use BufferGeometry .setAttribute to replace/resize attribute buffers');
 	}; //
 
@@ -35585,9 +35532,7 @@
 		return this;
 	};
 
-	InterleavedBuffer.prototype.setArray = function ()
-	/* array */
-	{
+	InterleavedBuffer.prototype.setArray = function () {
 		console.error('THREE.InterleavedBuffer: .setArray has been removed. Use BufferGeometry .setAttribute to replace/resize attribute buffers');
 	}; //
 
@@ -35821,9 +35766,7 @@
 				console.warn('THREE.WebGLRenderer: .shadowMapCullFace has been removed. Set Material.shadowSide instead.');
 				return undefined;
 			},
-			set: function ()
-			/* value */
-			{
+			set: function () {
 				console.warn('THREE.WebGLRenderer: .shadowMapCullFace has been removed. Set Material.shadowSide instead.');
 			}
 		},
@@ -35874,9 +35817,7 @@
 				console.warn('THREE.WebGLRenderer: .shadowMap.cullFace has been removed. Set Material.shadowSide instead.');
 				return undefined;
 			},
-			set: function ()
-			/* cullFace */
-			{
+			set: function () {
 				console.warn('THREE.WebGLRenderer: .shadowMap.cullFace has been removed. Set Material.shadowSide instead.');
 			}
 		},
@@ -36071,19 +36012,13 @@
 	} //
 
 	const SceneUtils = {
-		createMultiMaterialObject: function ()
-		/* geometry, materials */
-		{
+		createMultiMaterialObject: function () {
 			console.error('THREE.SceneUtils has been moved to /examples/jsm/utils/SceneUtils.js');
 		},
-		detach: function ()
-		/* child, parent, scene */
-		{
+		detach: function () {
 			console.error('THREE.SceneUtils has been moved to /examples/jsm/utils/SceneUtils.js');
 		},
-		attach: function ()
-		/* child, scene, parent */
-		{
+		attach: function () {
 			console.error('THREE.SceneUtils has been moved to /examples/jsm/utils/SceneUtils.js');
 		}
 	}; //
