@@ -7,7 +7,7 @@
 	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
 	typeof define === 'function' && define.amd ? define(['exports'], factory) :
 	(global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.THREE = {}));
-}(this, (function (exports) { 'use strict';
+})(this, (function (exports) { 'use strict';
 
 	const REVISION = '133';
 	const MOUSE = {
@@ -5148,6 +5148,7 @@
 			this.visible = true;
 			this.castShadow = false;
 			this.receiveShadow = false;
+			this.reflectionProbeMode = false;
 			this.frustumCulled = true;
 			this.renderOrder = 0;
 			this.animations = [];
@@ -9782,7 +9783,7 @@
 
 	var envmap_fragment = "#ifdef USE_ENVMAP\n\t#ifdef ENV_WORLDPOS\n\t\tvec3 cameraToFrag;\n\t\tif ( isOrthographic ) {\n\t\t\tcameraToFrag = normalize( vec3( - viewMatrix[ 0 ][ 2 ], - viewMatrix[ 1 ][ 2 ], - viewMatrix[ 2 ][ 2 ] ) );\n\t\t} else {\n\t\t\tcameraToFrag = normalize( vWorldPosition - cameraPosition );\n\t\t}\n\t\tvec3 worldNormal = inverseTransformDirection( normal, viewMatrix );\n\t\t#ifdef ENVMAP_MODE_REFLECTION\n\t\t\tvec3 reflectVec = reflect( cameraToFrag, worldNormal );\n\t\t#else\n\t\t\tvec3 reflectVec = refract( cameraToFrag, worldNormal, refractionRatio );\n\t\t#endif\n\t#else\n\t\tvec3 reflectVec = vReflect;\n\t#endif\n\t#ifdef ENVMAP_TYPE_CUBE\n\t\tvec4 envColor = textureCube( envMap, vec3( flipEnvMap * reflectVec.x, reflectVec.yz ) );\n\t\tenvColor = envMapTexelToLinear( envColor );\n\t#elif defined( ENVMAP_TYPE_CUBE_UV )\n\t\tvec4 envColor = textureCubeUV( envMap, reflectVec, 0.0 );\n\t#else\n\t\tvec4 envColor = vec4( 0.0 );\n\t#endif\n\t#ifdef ENVMAP_BLENDING_MULTIPLY\n\t\toutgoingLight = mix( outgoingLight, outgoingLight * envColor.xyz, specularStrength * reflectivity );\n\t#elif defined( ENVMAP_BLENDING_MIX )\n\t\toutgoingLight = mix( outgoingLight, envColor.xyz, specularStrength * reflectivity );\n\t#elif defined( ENVMAP_BLENDING_ADD )\n\t\toutgoingLight += envColor.xyz * specularStrength * reflectivity;\n\t#endif\n#endif";
 
-	var envmap_common_pars_fragment = "#ifdef USE_ENVMAP\n\tuniform float envMapIntensity;\n\tuniform float flipEnvMap;\n\tuniform int maxMipLevel;\n\t#ifdef ENVMAP_TYPE_CUBE\n\t\tuniform samplerCube envMap;\n\t#else\n\t\tuniform sampler2D envMap;\n\t#endif\n\t\n#endif";
+	var envmap_common_pars_fragment = "#ifdef USE_ENVMAP\n\tuniform float envMapIntensity;\n\tuniform float flipEnvMap;\n\tuniform int maxMipLevel;\n\tuniform float envMapBlend;\n\t#ifdef ENVMAP_TYPE_CUBE\n\t\tuniform samplerCube envMap;\n\t#else\n\t\tuniform sampler2D envMap;\n\t\tuniform sampler2D envMap2;\n\t#endif\n\t\n#endif";
 
 	var envmap_pars_fragment = "#ifdef USE_ENVMAP\n\tuniform float reflectivity;\n\t#if defined( USE_BUMPMAP ) || defined( USE_NORMALMAP ) || defined( PHONG )\n\t\t#define ENV_WORLDPOS\n\t#endif\n\t#ifdef ENV_WORLDPOS\n\t\tvarying vec3 vWorldPosition;\n\t\tuniform float refractionRatio;\n\t#else\n\t\tvarying vec3 vReflect;\n\t#endif\n#endif";
 
@@ -9808,7 +9809,7 @@
 
 	var lights_pars_begin = "uniform bool receiveShadow;\nuniform vec3 ambientLightColor;\nuniform vec3 lightProbe[ 9 ];\nvec3 shGetIrradianceAt( in vec3 normal, in vec3 shCoefficients[ 9 ] ) {\n\tfloat x = normal.x, y = normal.y, z = normal.z;\n\tvec3 result = shCoefficients[ 0 ] * 0.886227;\n\tresult += shCoefficients[ 1 ] * 2.0 * 0.511664 * y;\n\tresult += shCoefficients[ 2 ] * 2.0 * 0.511664 * z;\n\tresult += shCoefficients[ 3 ] * 2.0 * 0.511664 * x;\n\tresult += shCoefficients[ 4 ] * 2.0 * 0.429043 * x * y;\n\tresult += shCoefficients[ 5 ] * 2.0 * 0.429043 * y * z;\n\tresult += shCoefficients[ 6 ] * ( 0.743125 * z * z - 0.247708 );\n\tresult += shCoefficients[ 7 ] * 2.0 * 0.429043 * x * z;\n\tresult += shCoefficients[ 8 ] * 0.429043 * ( x * x - y * y );\n\treturn result;\n}\nvec3 getLightProbeIrradiance( const in vec3 lightProbe[ 9 ], const in vec3 normal ) {\n\tvec3 worldNormal = inverseTransformDirection( normal, viewMatrix );\n\tvec3 irradiance = shGetIrradianceAt( worldNormal, lightProbe );\n\treturn irradiance;\n}\nvec3 getAmbientLightIrradiance( const in vec3 ambientLightColor ) {\n\tvec3 irradiance = ambientLightColor;\n\treturn irradiance;\n}\nfloat getDistanceAttenuation( const in float lightDistance, const in float cutoffDistance, const in float decayExponent ) {\n\t#if defined ( PHYSICALLY_CORRECT_LIGHTS )\n\t\tfloat distanceFalloff = 1.0 / max( pow( lightDistance, decayExponent ), 0.01 );\n\t\tif ( cutoffDistance > 0.0 ) {\n\t\t\tdistanceFalloff *= pow2( saturate( 1.0 - pow4( lightDistance / cutoffDistance ) ) );\n\t\t}\n\t\treturn distanceFalloff;\n\t#else\n\t\tif ( cutoffDistance > 0.0 && decayExponent > 0.0 ) {\n\t\t\treturn pow( saturate( - lightDistance / cutoffDistance + 1.0 ), decayExponent );\n\t\t}\n\t\treturn 1.0;\n\t#endif\n}\nfloat getSpotAttenuation( const in float coneCosine, const in float penumbraCosine, const in float angleCosine ) {\n\treturn smoothstep( coneCosine, penumbraCosine, angleCosine );\n}\n#if NUM_DIR_LIGHTS > 0\n\tstruct DirectionalLight {\n\t\tvec3 direction;\n\t\tvec3 color;\n\t};\n\tuniform DirectionalLight directionalLights[ NUM_DIR_LIGHTS ];\n\tvoid getDirectionalLightInfo( const in DirectionalLight directionalLight, const in GeometricContext geometry, out IncidentLight light ) {\n\t\tlight.color = directionalLight.color;\n\t\tlight.direction = directionalLight.direction;\n\t\tlight.visible = true;\n\t}\n#endif\n#if NUM_POINT_LIGHTS > 0\n\tstruct PointLight {\n\t\tvec3 position;\n\t\tvec3 color;\n\t\tfloat distance;\n\t\tfloat decay;\n\t};\n\tuniform PointLight pointLights[ NUM_POINT_LIGHTS ];\n\tvoid getPointLightInfo( const in PointLight pointLight, const in GeometricContext geometry, out IncidentLight light ) {\n\t\tvec3 lVector = pointLight.position - geometry.position;\n\t\tlight.direction = normalize( lVector );\n\t\tfloat lightDistance = length( lVector );\n\t\tlight.color = pointLight.color;\n\t\tlight.color *= getDistanceAttenuation( lightDistance, pointLight.distance, pointLight.decay );\n\t\tlight.visible = ( light.color != vec3( 0.0 ) );\n\t}\n#endif\n#if NUM_SPOT_LIGHTS > 0\n\tstruct SpotLight {\n\t\tvec3 position;\n\t\tvec3 direction;\n\t\tvec3 color;\n\t\tfloat distance;\n\t\tfloat decay;\n\t\tfloat coneCos;\n\t\tfloat penumbraCos;\n\t};\n\tuniform SpotLight spotLights[ NUM_SPOT_LIGHTS ];\n\tvoid getSpotLightInfo( const in SpotLight spotLight, const in GeometricContext geometry, out IncidentLight light ) {\n\t\tvec3 lVector = spotLight.position - geometry.position;\n\t\tlight.direction = normalize( lVector );\n\t\tfloat angleCos = dot( light.direction, spotLight.direction );\n\t\tfloat spotAttenuation = getSpotAttenuation( spotLight.coneCos, spotLight.penumbraCos, angleCos );\n\t\tif ( spotAttenuation > 0.0 ) {\n\t\t\tfloat lightDistance = length( lVector );\n\t\t\tlight.color = spotLight.color * spotAttenuation;\n\t\t\tlight.color *= getDistanceAttenuation( lightDistance, spotLight.distance, spotLight.decay );\n\t\t\tlight.visible = ( light.color != vec3( 0.0 ) );\n\t\t} else {\n\t\t\tlight.color = vec3( 0.0 );\n\t\t\tlight.visible = false;\n\t\t}\n\t}\n#endif\n#if NUM_RECT_AREA_LIGHTS > 0\n\tstruct RectAreaLight {\n\t\tvec3 color;\n\t\tvec3 position;\n\t\tvec3 halfWidth;\n\t\tvec3 halfHeight;\n\t};\n\tuniform sampler2D ltc_1;\tuniform sampler2D ltc_2;\n\tuniform RectAreaLight rectAreaLights[ NUM_RECT_AREA_LIGHTS ];\n#endif\n#if NUM_HEMI_LIGHTS > 0\n\tstruct HemisphereLight {\n\t\tvec3 direction;\n\t\tvec3 skyColor;\n\t\tvec3 groundColor;\n\t};\n\tuniform HemisphereLight hemisphereLights[ NUM_HEMI_LIGHTS ];\n\tvec3 getHemisphereLightIrradiance( const in HemisphereLight hemiLight, const in vec3 normal ) {\n\t\tfloat dotNL = dot( normal, hemiLight.direction );\n\t\tfloat hemiDiffuseWeight = 0.5 * dotNL + 0.5;\n\t\tvec3 irradiance = mix( hemiLight.groundColor, hemiLight.skyColor, hemiDiffuseWeight );\n\t\treturn irradiance;\n\t}\n#endif";
 
-	var envmap_physical_pars_fragment = "#if defined( USE_ENVMAP )\n\t#ifdef ENVMAP_MODE_REFRACTION\n\t\tuniform float refractionRatio;\n\t#endif\n\tvec3 getIBLIrradiance( const in vec3 normal ) {\n\t\t#if defined( ENVMAP_TYPE_CUBE_UV )\n\t\t\tvec3 worldNormal = inverseTransformDirection( normal, viewMatrix );\n\t\t\tvec4 envMapColor = textureCubeUV( envMap, worldNormal, 1.0 );\n\t\t\treturn PI * envMapColor.rgb * envMapIntensity;\n\t\t#else\n\t\t\treturn vec3( 0.0 );\n\t\t#endif\n\t}\n\tvec3 getIBLRadiance( const in vec3 viewDir, const in vec3 normal, const in float roughness ) {\n\t\t#if defined( ENVMAP_TYPE_CUBE_UV )\n\t\t\tvec3 reflectVec;\n\t\t\t#ifdef ENVMAP_MODE_REFLECTION\n\t\t\t\treflectVec = reflect( - viewDir, normal );\n\t\t\t\treflectVec = normalize( mix( reflectVec, normal, roughness * roughness) );\n\t\t\t#else\n\t\t\t\treflectVec = refract( - viewDir, normal, refractionRatio );\n\t\t\t#endif\n\t\t\treflectVec = inverseTransformDirection( reflectVec, viewMatrix );\n\t\t\tvec4 envMapColor = textureCubeUV( envMap, reflectVec, roughness );\n\t\t\treturn envMapColor.rgb * envMapIntensity;\n\t\t#else\n\t\t\treturn vec3( 0.0 );\n\t\t#endif\n\t}\n#endif";
+	var envmap_physical_pars_fragment = "#if defined( USE_ENVMAP )\n\t#ifdef ENVMAP_MODE_REFRACTION\n\t\tuniform float refractionRatio;\n\t#endif\n\tvec3 getIBLIrradiance( const in vec3 normal ) {\n\t\t#if defined( ENVMAP_TYPE_CUBE_UV )\n\t\t\tvec3 worldNormal = inverseTransformDirection( normal, viewMatrix );\n\t\t\tvec4 envMapColor = textureCubeUV( envMap, worldNormal, 1.0 );\n\t\t\tvec4 envMap2Color = textureCubeUV( envMap2, worldNormal, 1.0 );\n\t\t\tenvMapColor = mix(envMapColor, envMap2Color, envMapBlend);\n\t\t\treturn PI * envMapColor.rgb * envMapIntensity;\n\t\t#else\n\t\t\treturn vec3( 0.0 );\n\t\t#endif\n\t}\n\tvec3 getIBLRadiance( const in vec3 viewDir, const in vec3 normal, const in float roughness ) {\n\t\t#if defined( ENVMAP_TYPE_CUBE_UV )\n\t\t\tvec3 reflectVec;\n\t\t\t#ifdef ENVMAP_MODE_REFLECTION\n\t\t\t\treflectVec = reflect( - viewDir, normal );\n\t\t\t\treflectVec = normalize( mix( reflectVec, normal, roughness * roughness) );\n\t\t\t#else\n\t\t\t\treflectVec = refract( - viewDir, normal, refractionRatio );\n\t\t\t#endif\n\t\t\treflectVec = inverseTransformDirection( reflectVec, viewMatrix );\n\t\t\tvec4 envMapColor = textureCubeUV( envMap, reflectVec, roughness );\n\t\t\tvec4 envMap2Color = textureCubeUV( envMap2, reflectVec, roughness );\n\t\t\tenvMapColor = mix(envMapColor, envMap2Color, envMapBlend);\n\t\t\treturn envMapColor.rgb * envMapIntensity;\n\t\t#else\n\t\t\treturn vec3( 0.0 );\n\t\t#endif\n\t}\n#endif";
 
 	var lights_toon_fragment = "ToonMaterial material;\nmaterial.diffuseColor = diffuseColor.rgb;";
 
@@ -10439,7 +10440,15 @@
 			fragmentShader: ShaderChunk.meshphong_frag
 		},
 		standard: {
-			uniforms: mergeUniforms([UniformsLib.common, UniformsLib.envmap, UniformsLib.aomap, UniformsLib.lightmap, UniformsLib.emissivemap, UniformsLib.bumpmap, UniformsLib.normalmap, UniformsLib.displacementmap, UniformsLib.roughnessmap, UniformsLib.metalnessmap, UniformsLib.fog, UniformsLib.lights, {
+			uniforms: mergeUniforms([UniformsLib.common, (() => {
+				// TODO HACK don't include envMap uniform, it is currently handling directly in WebGLRenderer for ReflectionProbes support
+				const {
+					envMap,
+					...rest
+				} = UniformsLib.envmap; // eslint-disable-line no-unused-vars
+
+				return rest;
+			})(), UniformsLib.aomap, UniformsLib.lightmap, UniformsLib.emissivemap, UniformsLib.bumpmap, UniformsLib.normalmap, UniformsLib.displacementmap, UniformsLib.roughnessmap, UniformsLib.metalnessmap, UniformsLib.fog, UniformsLib.lights, {
 				emissive: {
 					value: new Color(0x000000)
 				},
@@ -14941,6 +14950,7 @@
 			},
 			ambient: [0, 0, 0],
 			probe: [],
+			reflectionProbes: [],
 			directional: [],
 			directionalShadow: [],
 			directionalShadowMap: [],
@@ -14980,6 +14990,7 @@
 			let numDirectionalShadows = 0;
 			let numPointShadows = 0;
 			let numSpotShadows = 0;
+			let numReflectionProbes = 0;
 			lights.sort(shadowCastingLightsFirst); // artist-friendly light intensity scaling factor
 
 			const scaleFactor = physicallyCorrectLights !== true ? Math.PI : 1;
@@ -14999,6 +15010,8 @@
 					for (let j = 0; j < 9; j++) {
 						state.probe[j].addScaledVector(light.sh.coefficients[j], intensity);
 					}
+				} else if (light.isReflectionProbe) {
+					state.reflectionProbes[numReflectionProbes++] = light;
 				} else if (light.isDirectionalLight) {
 					const uniforms = cache.get(light);
 					uniforms.color.copy(light.color).multiplyScalar(light.intensity * scaleFactor);
@@ -15106,6 +15119,7 @@
 			state.ambient[0] = r;
 			state.ambient[1] = g;
 			state.ambient[2] = b;
+			state.reflectionProbes.length = numReflectionProbes;
 			const hash = state.hash;
 
 			if (hash.directionalLength !== directionalLength || hash.pointLength !== pointLength || hash.spotLength !== spotLength || hash.rectAreaLength !== rectAreaLength || hash.hemiLength !== hemiLength || hash.numDirectionalShadows !== numDirectionalShadows || hash.numPointShadows !== numPointShadows || hash.numSpotShadows !== numSpotShadows) {
@@ -18315,7 +18329,11 @@
 			const envMap = properties.get(material).envMap;
 
 			if (envMap) {
-				uniforms.envMap.value = envMap;
+				// TODO HACK currently handling directly in WebGLRenderer only for MeshStandardMaterial for ReflectionProbes
+				if (!material.isMeshStandardMaterial) {
+					uniforms.envMap.value = envMap;
+				}
+
 				uniforms.flipEnvMap.value = envMap.isCubeTexture && envMap.isRenderTargetTexture === false ? -1 : 1;
 				uniforms.reflectivity.value = material.reflectivity;
 				uniforms.ior.value = material.ior;
@@ -18754,6 +18772,12 @@
 		const canvas = createElementNS('canvas');
 		canvas.style.display = 'block';
 		return canvas;
+	} // non-zero here allows flat planes to still be lit by reflection probes
+	// by considering them *very* thin instead of *infinitely* thin.
+
+
+	function nonZeroBoxVolume(box) {
+		return (box.max.x - box.min.x || Number.EPSILON) * (box.max.y - box.min.y || Number.EPSILON) * (box.max.z - box.min.z || Number.EPSILON);
 	}
 
 	function WebGLRenderer(parameters = {}) {
@@ -18847,6 +18871,10 @@
 		const _projScreenMatrix = new Matrix4();
 
 		const _vector3 = new Vector3();
+
+		const _tmpObjectAABB = new Box3();
+
+		const _tmpOverlapBox = new Box3();
 
 		const _emptyScene = {
 			background: null,
@@ -19575,7 +19603,14 @@
 			const opaqueObjects = currentRenderList.opaque;
 			const transmissiveObjects = currentRenderList.transmissive;
 			const transparentObjects = currentRenderList.transparent;
-			currentRenderState.setupLightsView(camera);
+			currentRenderState.setupLightsView(camera); // TODO this triggers cubemap generation up front, should probably be done elsewhere
+
+			const reflectionProbes = currentRenderState.state.lights.state.reflectionProbes;
+
+			for (let i = 0; i < reflectionProbes.length; i++) {
+				cubeuvmaps.get(reflectionProbes[i].texture);
+			}
+
 			if (transmissiveObjects.length > 0) renderTransmissionPass(opaqueObjects, scene, camera);
 			if (viewport) state.viewport(_currentViewport.copy(viewport));
 			if (opaqueObjects.length > 0) renderObjects(opaqueObjects, scene, camera);
@@ -19895,6 +19930,66 @@
 						p_uniforms.setValue(_gl, 'boneTextureSize', skeleton.boneTextureSize);
 					} else {
 						p_uniforms.setOptional(_gl, skeleton, 'boneMatrices');
+					}
+				}
+			} // This is not done in refreshMaterialUniforms because we want to be able to support the same material using different environment map (based on its location)
+			// Because of this, similar to the above note about skinned meshes, this must be done before refreshMaterialUniforms is called, and both texture uniforms must
+			// be set in all cases to prevent texture units from becoming out of sync when refreshMaterials is not set and thus refreshMaterialUniforms is not called.
+
+
+			if (materialProperties.envMap && material.isMeshStandardMaterial) {
+				const probes = lights.state.reflectionProbes; // this is essentially the same as the original codepath without ReflectionProbes, with the addition of setting envMap2 and envMapBlend to noop values
+
+				if (material.envMap || !probes.length || !object.reflectionProbeMode) {
+					p_uniforms.setValue(_gl, 'envMap', materialProperties.envMap, textures);
+					p_uniforms.setValue(_gl, 'envMap2', materialProperties.envMap, textures);
+					p_uniforms.setValue(_gl, 'envMapBlend', 0);
+				} else if (object.reflectionProbeMode === 'static' && object.__webglStaticReflectionProbe) {
+					p_uniforms.setValue(_gl, 'envMap', object.__webglStaticReflectionProbe.envMap, textures);
+					p_uniforms.setValue(_gl, 'envMap2', object.__webglStaticReflectionProbe.envMap2, textures);
+					p_uniforms.setValue(_gl, 'envMapBlend', object.__webglStaticReflectionProbe.envMapBlend);
+				} else {
+					if (!geometry.boundingBox) {
+						console.log('generated bounding box for ', object.name);
+						geometry.computeBoundingBox();
+					}
+
+					_tmpObjectAABB.copy(geometry.boundingBox).applyMatrix4(object.matrixWorld);
+
+					let envMapA = null;
+					let envMapB = null;
+					let maxVolumeA = 0;
+					let maxVolumeB = 0;
+
+					for (let i = 0; i < probes.length; i++) {
+						if (probes[i].box.intersectsBox(_tmpObjectAABB)) {
+							const volume = nonZeroBoxVolume(_tmpOverlapBox.copy(_tmpObjectAABB).intersect(probes[i].box));
+
+							if (volume > maxVolumeA) {
+								envMapB = envMapA;
+								maxVolumeB = maxVolumeA;
+								envMapA = probes[i].texture;
+								maxVolumeA = volume;
+							} else if (volume > maxVolumeB) {
+								envMapB = probes[i].texture;
+								maxVolumeB = volume;
+							}
+						}
+					}
+
+					const blend = envMapB ? maxVolumeB / (maxVolumeA + maxVolumeB) : 1 - maxVolumeA / nonZeroBoxVolume(_tmpObjectAABB);
+					envMapA = (material.isMeshStandardMaterial ? cubeuvmaps : cubemaps).get(envMapA || environment);
+					envMapB = (material.isMeshStandardMaterial ? cubeuvmaps : cubemaps).get(envMapB || environment);
+					p_uniforms.setValue(_gl, 'envMap', envMapA, textures);
+					p_uniforms.setValue(_gl, 'envMap2', envMapB, textures);
+					p_uniforms.setValue(_gl, 'envMapBlend', blend);
+
+					if (object.reflectionProbeMode === 'static') {
+						object.__webglStaticReflectionProbe = {
+							envMap: envMapA,
+							envMap2: envMapB,
+							envMapBlend: blend
+						};
 					}
 				}
 			}
@@ -24340,7 +24435,9 @@
 
 
 	function isValidDiagonal(a, b) {
-		return a.next.i !== b.i && a.prev.i !== b.i && !intersectsPolygon(a, b) && (locallyInside(a, b) && locallyInside(b, a) && middleInside(a, b) && (area(a.prev, a, b.prev) || area(a, b.prev, b)) || // does not create opposite-facing sectors
+		return a.next.i !== b.i && a.prev.i !== b.i && !intersectsPolygon(a, b) && ( // dones't intersect other edges
+		locallyInside(a, b) && locallyInside(b, a) && middleInside(a, b) && ( // locally visible
+		area(a.prev, a, b.prev) || area(a, b.prev, b)) || // does not create opposite-facing sectors
 		equals(a, b) && area(a.prev, a, a.next) > 0 && area(b.prev, b, b.next) > 0); // special zero-length case
 	} // signed area of a triangle
 
@@ -30549,6 +30646,25 @@
 
 	AmbientLightProbe.prototype.isAmbientLightProbe = true;
 
+	class ReflectionProbe extends Light {
+		constructor(box = new Box3(), texture) {
+			super();
+			this.box = box;
+			this.texture = texture;
+		}
+
+		copy(source) {
+			super.copy(source);
+			this.box.copy(source.box);
+			this.texture = source.texture;
+			return this;
+		} // TODO fromJSON/toJSON
+
+
+	}
+
+	ReflectionProbe.prototype.isReflectionProbe = true;
+
 	const _eyeRight = /*@__PURE__*/new Matrix4();
 
 	const _eyeLeft = /*@__PURE__*/new Matrix4();
@@ -36400,6 +36516,7 @@
 	exports.RectAreaLight = RectAreaLight;
 	exports.RedFormat = RedFormat;
 	exports.RedIntegerFormat = RedIntegerFormat;
+	exports.ReflectionProbe = ReflectionProbe;
 	exports.ReinhardToneMapping = ReinhardToneMapping;
 	exports.RepeatWrapping = RepeatWrapping;
 	exports.ReplaceStencilOp = ReplaceStencilOp;
@@ -36523,4 +36640,4 @@
 
 	Object.defineProperty(exports, '__esModule', { value: true });
 
-})));
+}));
