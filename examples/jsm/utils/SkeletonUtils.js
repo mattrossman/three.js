@@ -11,9 +11,20 @@ import {
 
 const _m1 = new Matrix4();
 const _m2 = new Matrix4();
+const _inverseBindMatrix = new Matrix4();
+
+const _mSourceWorld = new Matrix4();
+const _mSourceBindWorld = new Matrix4();
+const _mSourceBindLocal = new Matrix4();
+const _mSourceLocal = new Matrix4();
+const _mSourceBindToCurrentLocal = new Matrix4();
+const _mTargetBindLocal = new Matrix4();
 
 const _q1 = new Quaternion();
 const _q2 = new Quaternion();
+
+const _v1 = new Vector3();
+const _vIgnore = new Vector3();
 
 
 /**
@@ -42,17 +53,18 @@ function retargetV2( target, source, _options = {} ) {
 	 * Maps from source bone name
 	 * @type {Map<string, THREE.Bone>}
 	 */
-	const sourceBones = new Map();
 	const sourceBoneIndices = new Map();
 
 	for ( let i = 0; i < source.bones.length; ++ i ) {
 
 		const sourceBone = source.bones[i];
 
-		sourceBones.set( sourceBone.name, sourceBone );
 		sourceBoneIndices.set( sourceBone.name, i );
 
 	}
+
+	/** @type {number} */
+	const sourceRootBoneIndex = sourceBoneIndices.get( options.root );
 
 	source.bones[0].updateMatrixWorld();
 
@@ -66,40 +78,86 @@ function retargetV2( target, source, _options = {} ) {
 
 		const sourceBone = source.bones[ sourceBoneIndex ];
 
-		// Target root position is affected by source root position
+
+		_mSourceWorld.copy( source.bones[ sourceRootBoneIndex ].parent.matrixWorld );
+
+		// bind matrix (original)
+		_mSourceBindWorld.copy( source.boneInverses[ sourceBoneIndex ] ).invert()
+
+		// bind matrix (transformed)
+		_mSourceBindWorld.multiply( _mSourceWorld );
+
+
+		// Step 1: find local transform of source bone in bind pose
+		
+		// _mSourceBindLocal.copy( source.boneInverses[ sourceBoneIndex ] ).invert();
+		_mSourceBindLocal.copy( _mSourceBindWorld );
+
+		if ( sourceBone.parent ) {
+
+			const sourceParentBoneIndex = sourceBoneIndices.get( sourceBone.parent.name );
+
+			if ( sourceParentBoneIndex !== undefined ) {
+
+				// if the parent is a bone, convert to local space using the parent's inverse bind matrix
+
+				_m1.copy( source.boneInverses[ sourceParentBoneIndex ] ).invert()
+				_m1.multiply( _mSourceWorld );
+				_m1.invert();
+				
+				_mSourceBindLocal.multiply( _m1 );
+				// _mSourceBindLocal.multiply( source.boneInverses[ sourceParentBoneIndex ] );
+
+			} else {
+
+				// if the parent isn't a bone, convert to local space using the parent's current inverse world matrix
+				
+				_mSourceBindLocal.multiply( _m1.copy( sourceBone.parent.matrixWorld ).invert() );
+				
+			}
+
+		}
+
+		// Step 2: find local transform of source bone in current pose
+
+		_mSourceLocal.copy( sourceBone.matrixWorld );
+
+		if ( sourceBone.parent ) {
+
+			_mSourceLocal.multiply( _m1.copy( sourceBone.parent.matrixWorld ).invert() );
+				
+		}
+
+		// Step 3: find delta local transform between source current pose and source bind pose
+
+		_mSourceBindToCurrentLocal.copy( _mSourceBindLocal ).invert().multiply( _mSourceLocal );
+
+
+		// Step 4: find local transform of target bone in bind pose
+
+		_mTargetBindLocal.copy( target.boneInverses[ i ] ).invert()
+
+
+		// Step 5: apply delta to target bone local bind pose
+
+		targetBone.matrix.copy( _mTargetBindLocal ).multiply( _mSourceBindToCurrentLocal );
+		
+
+		// Step 6: extract relevant components
 
 		if ( sourceBoneName === options.root ) {
 
-			targetBone.position.setFromMatrixPosition( sourceBone.matrixWorld );
+			targetBone.matrix.decompose( targetBone.position, targetBone.quaternion, _vIgnore );
 			
-			if ( targetBone.parent ) {
+		} else {
+			
+			targetBone.matrix.decompose( _vIgnore, targetBone.quaternion, _vIgnore );
 
-				targetBone.position.applyMatrix4( _m1.copy(targetBone.parent.matrixWorld).invert() );
-				
-			}
-			
 		}
 
-
-		// Global transform of the source bone relative to its bind pose
-
-		_m1.copy( sourceBone.matrixWorld ).multiply( source.boneInverses[ sourceBoneIndex ] );
-
-		targetBone.quaternion.setFromRotationMatrix(_m1);
-
-		if ( targetBone.parent ) {
-
-			_q1.setFromRotationMatrix( targetBone.parent.matrixWorld ).invert();
-
-			targetBone.quaternion.multiply(_q1)
-			
-		}
-
-		targetBone.updateMatrixWorld()
-
+		targetBone.updateMatrix();
+		
 	}
-
-
 }
 
 function retarget( target, source, options = {} ) {

@@ -49,13 +49,17 @@
 
 		let mixer, skeletonSource, skeletonTarget, retargetOptions;
 
+		const _color = new THREE.Color();
+
+		const axesMaterial = new THREE.LineBasicMaterial({ vertexColors: true, toneMapped: false, depthTest: false });
+
 		init().then( animate );
 
 		async function init() {
 
 			params = {
-				animate: false,
-				retarget: false,
+				animate: true,
+				retarget: true,
 				update: updateRetarget,
 				poseSource: () => { skeletonSource.pose() }
 			}
@@ -113,26 +117,36 @@
 
 			scene.add( gltf.scene );
 
-			const helper = new THREE.SkeletonHelper( bvh.skeleton.bones[0] );
-			helper.skeleton = bvh.skeleton; // HACK
+			const sourceHelper = new THREE.SkeletonHelper( bvh.skeleton.bones[0] );
+			sourceHelper.skeleton = bvh.skeleton; // HACK
+			scene.add( sourceHelper );
+
+			const targetHelper = new THREE.SkeletonHelper( gltf.scene );
+			setSkeletonHelperColors( targetHelper, 'red', 'red' );
+			scene.add(targetHelper)
 
 			const container = new THREE.Group();
 			container.scale.setScalar( 0.01 );
 			container.add( bvh.skeleton.bones[0] );
 
 			scene.add( container );
-			scene.add( helper );
 
 			skeletonSource = bvh.skeleton;
 			skeletonTarget = gltf.scene.getObjectByProperty('isSkinnedMesh', true).skeleton;
 
 			skeletonTarget.bones[ 0 ].updateMatrixWorld();
-			
+
 			// Save T bind pose
 			skeletonSource.bones[ 0 ].updateMatrixWorld();
 			skeletonSource.calculateInverses();
 
-			mixer = new THREE.AnimationMixer( helper );
+			{
+				const axes = new THREE.AxesHelper(10);
+				axes.material.depthTest = false;
+				skeletonTarget.bones[ 0 ].add( axes ); 
+			}
+
+			mixer = new THREE.AnimationMixer( sourceHelper );
 			mixer.clipAction( bvh.clip ).setEffectiveWeight( 1.0 ).play();
 
 			retargetOptions = {
@@ -204,7 +218,11 @@
 
 			window.addEventListener( 'resize', onWindowResize, false );
 
-			Object.assign(window, { gltf, bvh, skeletonSource, skeletonTarget })
+			Object.assign(window, {
+				THREE, gltf, bvh, skeletonSource, skeletonTarget,
+				m: new THREE.Matrix4(), e: new THREE.Euler(),
+				p: new THREE.Vector3(), s: new THREE.Vector3(), q: new THREE.Quaternion,
+			})
 
 		}
 
@@ -232,6 +250,25 @@
 			// SkeletonUtils.retarget(skeletonTarget, skeletonSource, retargetOptions)
 			SkeletonUtils.retargetV2(skeletonTarget, skeletonSource, { ...retargetOptions });
 			
+		}
+
+		/**
+		 * @param {THREE.SkeletonHelper} helper
+		 * @param {THREE.ColorRepresentation} color1
+		 * @param {THREE.ColorRepresentation} color2
+		 */
+		export function setSkeletonHelperColors(helper, color1, color2) {
+			const colors = helper.geometry.getAttribute("color")
+			if (!(colors instanceof THREE.BufferAttribute)) throw new Error()
+
+			const nLines = colors.count / 2 // each line has 2 colors
+
+			for (let i = 0; i < nLines; ++i) {
+				colors.set(_color.set(color1).toArray(), (i * 2 + 0) * colors.itemSize)
+				colors.set(_color.set(color2).toArray(), (i * 2 + 1) * colors.itemSize)
+			}
+
+			colors.needsUpdate = true
 		}
 
 		function onWindowResize() {
