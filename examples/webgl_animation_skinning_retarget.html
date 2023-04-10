@@ -37,21 +37,23 @@
 		import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 		import { TransformControls } from 'three/addons/controls/TransformControls.js';
 		import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+		import { BVHLoader } from 'three/addons/loaders/BVHLoader.js';
 		import { CCDIKSolver, CCDIKHelper } from './jsm/animation/CCDIKSolver.js';
 		import Stats from 'three/addons/libs/stats.module.js';
 		import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+		import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js'
 
-		let scene, camera, renderer, orbitControls, transformControls;
+		let scene, camera, renderer, orbitControls, clock;
 
-		let stats, gui, conf;
-		const v0 = new THREE.Vector3();
+		let stats, gui;
+
+		let mixer, skeletonSource, skeletonTarget, retargetOptions;
 
 		init().then( animate );
 
 		async function init() {
 
-			conf = {
-			};
+			clock = new THREE.Clock();
 
 			scene = new THREE.Scene();
 			scene.background = new THREE.Color( 0xa0a0a0 );
@@ -82,13 +84,94 @@
 			mesh.receiveShadow = true;
 			scene.add( mesh );
 
-			const grid = new THREE.GridHelper()
-			scene.add(grid)
+			const grid = new THREE.GridHelper();
+			scene.add(grid);
 
 			const gltfLoader = new GLTFLoader();
+			const bvhLoader = new BVHLoader();
 
-			const gltf = await gltfLoader.loadAsync( 'models/gltf/Soldier.glb' );
+			const [ bvh, gltf ] = await Promise.all([
+
+				bvhLoader.loadAsync( 'models/bvh/pirouette.bvh' ),
+
+				gltfLoader.loadAsync( 'models/gltf/Soldier.glb' )
+
+			] );
+
+			gltf.scene.traverse( (object) => {
+
+				if ( object.isMesh ) object.castShadow = true;
+
+			} );
+
 			scene.add( gltf.scene );
+
+			const helper = new THREE.SkeletonHelper( bvh.skeleton.bones[0] );
+
+			const skinnedMesh = new THREE.SkinnedMesh();
+			skinnedMesh.visible = false;
+
+			const container = new THREE.Group();
+			container.scale.setScalar( 0.01 );
+			container.add( skinnedMesh );
+
+			skinnedMesh.add( bvh.skeleton.bones[0] );
+			skinnedMesh.bind( bvh.skeleton );
+
+			scene.add( container );
+			scene.add( helper );
+
+			skeletonSource = bvh.skeleton;
+			skeletonTarget = gltf.scene.getObjectByProperty('isSkinnedMesh', true).skeleton;
+
+			mixer = new THREE.AnimationMixer( skinnedMesh );
+			mixer.clipAction( bvh.clip ).setEffectiveWeight( 1.0 ).play();
+
+			retargetOptions = {
+				hip: "hip",
+				names: {
+					"mixamorigHips": "hip",
+					"mixamorigSpine": "abdomen",
+					"mixamorigSpine1": "Chest2",
+					"mixamorigSpine2": "Chest3",
+					"mixamorigNeck": "neck",
+					"mixamorigHead": "head",
+					"mixamorigRightShoulder": "rCollar",
+					"mixamorigRightArm": "rShldr",
+					"mixamorigRightForeArm": "rForeArm",
+					"mixamorigRightHand": "rHand",
+					"mixamorigRightHandThumb1": "rThumb1",
+					"mixamorigRightHandThumb2": "rThumb2",
+					"mixamorigRightHandIndex1": "rIndex1",
+					"mixamorigRightHandIndex2": "rIndex2",
+					"mixamorigRightHandMiddle1": "rMid1",
+					"mixamorigRightHandMiddle2": "rMid2",
+					"mixamorigRightHandRing1": "rRing1",
+					"mixamorigRightHandRing2": "rRing2",
+					"mixamorigRightHandPinky1": "rPinky1",
+					"mixamorigRightHandPinky2": "rPinky2",
+					"mixamorigLeftShoulder": "lCollar",
+					"mixamorigLeftArm": "lShldr",
+					"mixamorigLeftForeArm": "lForeArm",
+					"mixamorigLeftHand": "lHand",
+					"mixamorigLeftHandThumb1": "lThumb1",
+					"mixamorigLeftHandThumb2": "lThumb2",
+					"mixamorigLeftHandIndex1": "lIndex1",
+					"mixamorigLeftHandIndex2": "lIndex2",
+					"mixamorigLeftHandMiddle1": "lMid1",
+					"mixamorigLeftHandMiddle2": "lMid2",
+					"mixamorigLeftHandRing1": "lRing1",
+					"mixamorigLeftHandRing2": "lRing2",
+					"mixamorigLeftHandPinky1": "lPinky1",
+					"mixamorigLeftHandPinky2": "lPinky2",
+					"mixamorigRightUpLeg": "rThigh",
+					"mixamorigRightLeg": "rShin",
+					"mixamorigRightFoot": "rFoot",
+					"mixamorigLeftUpLeg": "lThigh",
+					"mixamorigLeftLeg": "lShin",
+					"mixamorigLeftFoot": "lFoot",
+				}
+			};
 
 			renderer = new THREE.WebGLRenderer( { antialias: true, logarithmicDepthBuffer: true } );
 			renderer.setPixelRatio( window.devicePixelRatio );
@@ -102,8 +185,6 @@
 
 			orbitControls = new OrbitControls( camera, renderer.domElement );
 			orbitControls.target.set(0, 1, 0)
-			orbitControls.minDistance = 0.2;
-			orbitControls.maxDistance = 5;
 			orbitControls.enableDamping = true;
 
 			gui = new GUI();
@@ -115,12 +196,19 @@
 
 		function animate( ) {
 
-			orbitControls.update();
-			renderer.render( scene, camera );
-
-			stats.update(); // fps stats
-
 			requestAnimationFrame( animate );
+
+			const delta = clock.getDelta();
+
+			mixer.update(delta);
+
+			SkeletonUtils.retarget(skeletonTarget, skeletonSource, retargetOptions)
+
+			orbitControls.update();
+
+			stats.update();
+
+			renderer.render( scene, camera );
 
 		}
 
