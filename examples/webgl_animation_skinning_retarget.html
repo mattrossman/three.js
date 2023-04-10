@@ -45,13 +45,20 @@
 
 		let scene, camera, renderer, orbitControls, clock;
 
-		let stats, gui;
+		let stats, gui, params;
 
 		let mixer, skeletonSource, skeletonTarget, retargetOptions;
 
 		init().then( animate );
 
 		async function init() {
+
+			params = {
+				animate: false,
+				retarget: false,
+				update: updateRetarget,
+				poseSource: () => { skeletonSource.pose() }
+			}
 
 			clock = new THREE.Clock();
 
@@ -107,16 +114,11 @@
 			scene.add( gltf.scene );
 
 			const helper = new THREE.SkeletonHelper( bvh.skeleton.bones[0] );
-
-			const skinnedMesh = new THREE.SkinnedMesh();
-			skinnedMesh.visible = false;
+			helper.skeleton = bvh.skeleton; // HACK
 
 			const container = new THREE.Group();
 			container.scale.setScalar( 0.01 );
-			container.add( skinnedMesh );
-
-			skinnedMesh.add( bvh.skeleton.bones[0] );
-			skinnedMesh.bind( bvh.skeleton );
+			container.add( bvh.skeleton.bones[0] );
 
 			scene.add( container );
 			scene.add( helper );
@@ -124,7 +126,13 @@
 			skeletonSource = bvh.skeleton;
 			skeletonTarget = gltf.scene.getObjectByProperty('isSkinnedMesh', true).skeleton;
 
-			mixer = new THREE.AnimationMixer( skinnedMesh );
+			skeletonTarget.bones[ 0 ].updateMatrixWorld();
+			
+			// Save T bind pose
+			skeletonSource.bones[ 0 ].updateMatrixWorld();
+			skeletonSource.calculateInverses();
+
+			mixer = new THREE.AnimationMixer( helper );
 			mixer.clipAction( bvh.clip ).setEffectiveWeight( 1.0 ).play();
 
 			retargetOptions = {
@@ -188,9 +196,15 @@
 			orbitControls.enableDamping = true;
 
 			gui = new GUI();
+			gui.add( params, 'animate' );
+			gui.add( params, 'retarget' );
+			gui.add( params, 'update' );
+			gui.add( params, 'poseSource' );
 			gui.open();
 
 			window.addEventListener( 'resize', onWindowResize, false );
+
+			Object.assign(window, { gltf, bvh, skeletonSource, skeletonTarget })
 
 		}
 
@@ -200,9 +214,10 @@
 
 			const delta = clock.getDelta();
 
-			mixer.update(delta);
+			if (params.animate) mixer.update(delta);
 
-			SkeletonUtils.retarget(skeletonTarget, skeletonSource, retargetOptions)
+			if (params.retarget) updateRetarget()
+			// SkeletonUtils.retarget(skeletonTarget, skeletonSource, retargetOptions)
 
 			orbitControls.update();
 
@@ -210,6 +225,13 @@
 
 			renderer.render( scene, camera );
 
+		}
+
+		function updateRetarget() {
+
+			// SkeletonUtils.retarget(skeletonTarget, skeletonSource, retargetOptions)
+			SkeletonUtils.retargetV2(skeletonTarget, skeletonSource, { ...retargetOptions });
+			
 		}
 
 		function onWindowResize() {

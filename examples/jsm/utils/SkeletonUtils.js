@@ -9,6 +9,98 @@ import {
 	VectorKeyframeTrack
 } from 'three';
 
+const _m1 = new Matrix4();
+const _m2 = new Matrix4();
+
+const _q1 = new Quaternion();
+const _q2 = new Quaternion();
+
+
+/**
+ * @typedef RetargetOptions
+ * @property {string} [root] - name of the source's root bone
+ * @property {{[target: string]: string}} [names] - maps from target bone names to source names
+ * @property {'absolute'|'relative'} [orientationMode] - 'absolute' means target bones will match the orientation of source bones exactly, 'relative' means orientations will be transferred relative to each skeleton's bind pose.
+ * 
+ * @param {THREE.Skeleton} target
+ * @param {THREE.Skeleton} source
+ * @param {RetargetOptions} _options
+ */
+function retargetV2( target, source, _options = {} ) {
+
+	/** @satisfies {Required<RetargetOptions>} */
+	const _defaultOptions = {
+		root: 'hip',
+		names: {},
+		orientationMode: 'absolute'
+	}
+
+	/** Options filled with default values */
+	const options = Object.assign(_defaultOptions, _options)
+
+	/**
+	 * Maps from source bone name
+	 * @type {Map<string, THREE.Bone>}
+	 */
+	const sourceBones = new Map();
+	const sourceBoneIndices = new Map();
+
+	for ( let i = 0; i < source.bones.length; ++ i ) {
+
+		const sourceBone = source.bones[i];
+
+		sourceBones.set( sourceBone.name, sourceBone );
+		sourceBoneIndices.set( sourceBone.name, i );
+
+	}
+
+	source.bones[0].updateMatrixWorld();
+
+	for ( let i = 0; i < target.bones.length; ++ i ) {
+
+		const targetBone = target.bones[ i ];
+		const sourceBoneName = options.names[ targetBone.name ] ?? targetBone.name;
+		const sourceBoneIndex = sourceBoneIndices.get( sourceBoneName );
+
+		if ( sourceBoneIndex === undefined ) continue;
+
+		const sourceBone = source.bones[ sourceBoneIndex ];
+
+		// Target root position is affected by source root position
+
+		if ( sourceBoneName === options.root ) {
+
+			targetBone.position.setFromMatrixPosition( sourceBone.matrixWorld );
+			
+			if ( targetBone.parent ) {
+
+				targetBone.position.applyMatrix4( _m1.copy(targetBone.parent.matrixWorld).invert() );
+				
+			}
+			
+		}
+
+
+		// Global transform of the source bone relative to its bind pose
+
+		_m1.copy( sourceBone.matrixWorld ).multiply( source.boneInverses[ sourceBoneIndex ] );
+
+		targetBone.quaternion.setFromRotationMatrix(_m1);
+
+		if ( targetBone.parent ) {
+
+			_q1.setFromRotationMatrix( targetBone.parent.matrixWorld ).invert();
+
+			targetBone.quaternion.multiply(_q1)
+			
+		}
+
+		targetBone.updateMatrixWorld()
+
+	}
+
+
+}
 
 function retarget( target, source, options = {} ) {
 
@@ -447,6 +539,7 @@ function parallelTraverse( a, b, callback ) {
 }
 
 export {
+	retargetV2,
 	retarget,
 	retargetClip,
 	clone,
