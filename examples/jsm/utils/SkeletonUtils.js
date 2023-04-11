@@ -6,7 +6,8 @@ import {
 	QuaternionKeyframeTrack,
 	SkeletonHelper,
 	Vector3,
-	VectorKeyframeTrack
+	VectorKeyframeTrack,
+	Bone
 } from 'three';
 
 const _m1 = new Matrix4();
@@ -14,14 +15,26 @@ const _m2 = new Matrix4();
 const _inverseBindMatrix = new Matrix4();
 
 const _mSourceWorld = new Matrix4();
+const _mSourceParentBindWorld = new Matrix4();
 const _mSourceBindWorld = new Matrix4();
 const _mSourceBindLocal = new Matrix4();
 const _mSourceLocal = new Matrix4();
+const _mSourceRelative = new Matrix4();
 const _mSourceBindToCurrentLocal = new Matrix4();
 const _mTargetBindLocal = new Matrix4();
+const _mTargetBindWorld = new Matrix4();
+const _mResult = new Matrix4();
 
 const _q1 = new Quaternion();
 const _q2 = new Quaternion();
+
+const _qSourceWorld = new Quaternion();
+const _qSourceParentWorld = new Quaternion();
+const _qSourceBindWorld = new Quaternion();
+const _qSourceLocal = new Quaternion();
+const _qTargetBindToWorld = new Quaternion();
+const _qSourceWorldToBind = new Quaternion()
+
 
 const _v1 = new Vector3();
 const _vIgnore = new Vector3();
@@ -30,6 +43,7 @@ const _vIgnore = new Vector3();
 /**
  * @typedef RetargetOptions
  * @property {string} [root] - name of the source's root bone
+ * @property {THREE.Matrix4} [rootOffset] - offset transformation to apply to root bone
  * @property {{[target: string]: string}} [names] - maps from target bone names to source names
  * @property {'absolute'|'relative'} [orientationMode] - 'absolute' means target bones will match the orientation of source bones exactly, 'relative' means orientations will be transferred relative to each skeleton's bind pose.
  * 
@@ -39,7 +53,6 @@ const _vIgnore = new Vector3();
  */
 function retargetV2( target, source, _options = {} ) {
 
-	/** @satisfies {Required<RetargetOptions>} */
 	const _defaultOptions = {
 		root: 'hip',
 		names: {},
@@ -50,8 +63,8 @@ function retargetV2( target, source, _options = {} ) {
 	const options = Object.assign(_defaultOptions, _options)
 
 	/**
-	 * Maps from source bone name
-	 * @type {Map<string, THREE.Bone>}
+	 * Maps from source bone name to index
+	 * @type {Map<string, number>}
 	 */
 	const sourceBoneIndices = new Map();
 
@@ -66,7 +79,10 @@ function retargetV2( target, source, _options = {} ) {
 	/** @type {number} */
 	const sourceRootBoneIndex = sourceBoneIndices.get( options.root );
 
-	source.bones[0].updateMatrixWorld();
+	// source.bones[0].updateMatrixWorld();
+
+	target.pose();
+	// target.bones[ 0 ].updateMatrixWorld();
 
 	for ( let i = 0; i < target.bones.length; ++ i ) {
 
@@ -78,85 +94,70 @@ function retargetV2( target, source, _options = {} ) {
 
 		const sourceBone = source.bones[ sourceBoneIndex ];
 
+		if ( !['hip', 'abdomen'].includes( sourceBoneName ) ) {
 
-		_mSourceWorld.copy( source.bones[ sourceRootBoneIndex ].parent.matrixWorld );
-
-		// bind matrix (original)
-		_mSourceBindWorld.copy( source.boneInverses[ sourceBoneIndex ] ).invert()
-
-		// bind matrix (transformed)
-		_mSourceBindWorld.multiply( _mSourceWorld );
+			// continue;
+			
+		}
 
 
-		// Step 1: find local transform of source bone in bind pose
+		// source bind
+
+		_mSourceBindWorld.copy( source.boneInverses[ sourceBoneIndex ] ).invert();
+
+
+		// source parent bind
 		
-		// _mSourceBindLocal.copy( source.boneInverses[ sourceBoneIndex ] ).invert();
-		_mSourceBindLocal.copy( _mSourceBindWorld );
-
-		if ( sourceBone.parent ) {
+		if ( sourceBone.parent instanceof Bone ) {
 
 			const sourceParentBoneIndex = sourceBoneIndices.get( sourceBone.parent.name );
-
-			if ( sourceParentBoneIndex !== undefined ) {
-
-				// if the parent is a bone, convert to local space using the parent's inverse bind matrix
-
-				_m1.copy( source.boneInverses[ sourceParentBoneIndex ] ).invert()
-				_m1.multiply( _mSourceWorld );
-				_m1.invert();
-				
-				_mSourceBindLocal.multiply( _m1 );
-				// _mSourceBindLocal.multiply( source.boneInverses[ sourceParentBoneIndex ] );
-
-			} else {
-
-				// if the parent isn't a bone, convert to local space using the parent's current inverse world matrix
-				
-				_mSourceBindLocal.multiply( _m1.copy( sourceBone.parent.matrixWorld ).invert() );
-				
-			}
-
-		}
-
-		// Step 2: find local transform of source bone in current pose
-
-		_mSourceLocal.copy( sourceBone.matrixWorld );
-
-		if ( sourceBone.parent ) {
-
-			_mSourceLocal.multiply( _m1.copy( sourceBone.parent.matrixWorld ).invert() );
-				
-		}
-
-		// Step 3: find delta local transform between source current pose and source bind pose
-
-		_mSourceBindToCurrentLocal.copy( _mSourceBindLocal ).invert().multiply( _mSourceLocal );
-
-
-		// Step 4: find local transform of target bone in bind pose
-
-		_mTargetBindLocal.copy( target.boneInverses[ i ] ).invert()
-
-
-		// Step 5: apply delta to target bone local bind pose
-
-		targetBone.matrix.copy( _mTargetBindLocal ).multiply( _mSourceBindToCurrentLocal );
-		
-
-		// Step 6: extract relevant components
-
-		if ( sourceBoneName === options.root ) {
-
-			targetBone.matrix.decompose( targetBone.position, targetBone.quaternion, _vIgnore );
+			
+			_mSourceParentBindWorld.copy( source.boneInverses[ sourceParentBoneIndex ] ).invert();
 			
 		} else {
+
+			_mSourceParentBindWorld.identity()
 			
+		}
+
+
+		// source bind relative to parent
+
+		_mSourceBindLocal
+			.copy( _mSourceParentBindWorld )
+			.invert()
+			.multiply( _mSourceBindWorld );
+
+
+		// source current relative to parent
+
+		_mSourceLocal.copy( sourceBone.matrix );
+
+
+		// source current relative to bind
+
+		 _mSourceRelative
+		 	.copy( _mSourceBindLocal )
+		 	.invert()
+		 	.multiply( _mSourceLocal );
+		
+
+		// apply to target local transforms (previously reset to bind pose)
+
+		targetBone.matrix.multiply( _mSourceRelative );
+
+		if (sourceBoneName === options.root) {
+
+			if (options.rootOffset) targetBone.matrix.premultiply( options.rootOffset );
+
+			targetBone.matrix.decompose( targetBone.position, targetBone.quaternion, _vIgnore );
+
+		} else {
+
 			targetBone.matrix.decompose( _vIgnore, targetBone.quaternion, _vIgnore );
 
 		}
 
-		targetBone.updateMatrix();
-		
 	}
 }
 
